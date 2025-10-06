@@ -44,6 +44,9 @@ services:
         condition: service_healthy
         restart: true
     environment:
+      - PUID=$UID
+      - PGID=$GID
+      - TZ=$TZ
       - CRON_SCHEDULE=$PBS_CRON_SCHEDULE
       - CRON_BACKUP_ONLY=0
       - PBS_ENDPOINT=$PBS_ENDPOINT
