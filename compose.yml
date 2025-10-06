@@ -57,8 +57,8 @@ services:
       - PBS_DATASTORE_NS=$PBS_DATASTORE_NS
       - PBS_ENCRYPTION_PASSWORD=$PBS_ENCRYPTION_PASSWORD
     volumes:
-      - ./proxmox-backup/:/root/.config/proxmox-backup/
-      - backups:/backups
+      - ./proxmox-backup:/root/.config/proxmox-backup
+      - backups:/backups/openssh
     tmpfs:
       - /tmp
       - /run:exec
