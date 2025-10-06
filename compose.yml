@@ -1,0 +1,80 @@
+volumes:
+
+  backups:
+  openssh_config:
+  tailscale_state:
+
+services:
+
+  openssh:
+    image: lscr.io/linuxserver/openssh-server:latest
+    network_mode: service:tailscale
+    restart: on-failure
+    labels:
+      - deunhealth.restart.on.unhealthy=true
+    depends_on:
+      tailscale:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - openssh_config:/config
+      - backups:/config/backups
+    environment:
+      - PUID=$UID
+      - PGID=$GID
+      - TZ=$TZ
+      - LISTEN_PORT=22
+      - USER_NAME=$OPENSSH_USERNAME
+      - PUBLIC_KEY=$OPENSSH_PUBLIC_KEY
+    healthcheck:
+      test: nc -z 127.0.0.1 22 || exit 1
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pbs-client:
+    image: aterfax/pbs-client
+    network_mode: service:tailscale
+    restart: on-failure
+    labels:
+      - deunhealth.restart.on.unhealthy=true
+    depends_on:
+      tailscale:
+        condition: service_healthy
+        restart: true
+    environment:
+      - CRON_SCHEDULE=$PBS_CRON_SCHEDULE
+      - PBS_ENDPOINT=$PBS_ENDPOINT
+      - PBS_FINGERPRINT=$PBS_FINGERPRINT
+      - PBS_API_KEY_NAME=$PBS_API_KEY_NAME
+      - PBS_API_KEY_SECRET=$PBS_API_KEY_SECRET
+      - PBS_DATASTORE=$PBS_DATASTORE
+      - PBS_DATASTORE_NS=$PBS_DATASTORE_NS
+      - PBS_ENCRYPTION_PASSWORD=$PBS_ENCRYPTION_PASSWORD
+    volumes:
+      - ./proxmox-backup/:/root/.config/proxmox-backup/
+      - backups:/backups
+    tmpfs:
+      - /tmp
+      - /run:exec
+
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: ${TAILSCALE_HOSTNAME}
+    restart: on-failure
+    labels:
+      - deunhealth.restart.on.unhealthy=true
+    environment:
+      - TS_EXTRA_ARGS=--advertise-tags=tag:docker
+      - TS_TAILSCALED_EXTRA_ARGS=--no-logs-no-support
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_ENABLE_HEALTH_CHECK=true
+    volumes:
+      - tailscale_state:/var/lib/tailscale
+    healthcheck:
+      test: wget -q --tries=1 --spider http://127.0.0.1:9002/healthz || exit 1
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 5
